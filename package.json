@@ -1,0 +1,23 @@
+{
+  "dependencies": {
+    "vitest": "^5.1.0"
+  },
+  "name": "cuenta-bancaria",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dgamarra/cuenta-bancaria.git"
+  },
+  "keywords": [],
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/dgamarra/cuenta-bancaria/issues"
+  },
+  "homepage": "https://github.com/dgamarra/cuenta-bancaria#readme"
+}
