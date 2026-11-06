@@ -53,8 +53,8 @@ jobs:
       # `npm test` ejecuta `vitest run` (ver "scripts" en package.json).
       # Se usa la variante con cobertura: ejecuta exactamente las mismas
       # pruebas con Vitest y, además, genera el informe de V8 en cada CI.
-      - name: Ejecutar pruebas (Vitest + cobertura V8)
-        run: npm run test:coverage
+      - name: Ejecutar pruebas (Vitest)
+        run: npm run test
 
   # ---------------------------------------------------------
   # PASO 2: solo si las pruebas PASARON y el evento es un PR
