@@ -1,6 +1,7 @@
 # =============================================================
 # CI: Pruebas con TDD + auto-merge del pull request
 # -------------------------------------------------------------
+# Runner de pruebas: Vitest (npm run test:coverage) + cobertura V8.
 # Eventos:
 #   - push             → ejecuta las pruebas; si el push es a main (es decir,
 #                        tras fusionar un PR), el job "merge" deja constancia
@@ -46,14 +47,14 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Instalar dependencias (workspaces server + client)
+      - name: Instalar dependencias
         run: npm ci
 
-      - name: Ejecutar pruebas Jest (backend)
-        run: npm test
-
-      - name: Construir frontend (Vite)
-        run: npm run build
+      # `npm test` ejecuta `vitest run` (ver "scripts" en package.json).
+      # Se usa la variante con cobertura: ejecuta exactamente las mismas
+      # pruebas con Vitest y, además, genera el informe de V8 en cada CI.
+      - name: Ejecutar pruebas (Vitest + cobertura V8)
+        run: npm run test:coverage
 
   # ---------------------------------------------------------
   # PASO 2: solo si las pruebas PASARON y el evento es un PR
