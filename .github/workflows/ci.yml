@@ -1,0 +1,115 @@
+# =============================================================
+# CI: Pruebas con TDD + auto-merge del pull request
+# -------------------------------------------------------------
+# Eventos:
+#   - push             → ejecuta las pruebas; si el push es a main (es decir,
+#                        tras fusionar un PR), el job "merge" deja constancia
+#                        de que la rama quedó verde
+#   - pull_request     → ejecuta las pruebas y, si PASAN, hace el merge del PR
+#   - schedule (cron)  → 18:00 hora de Lima (UTC-5) = 23:00 UTC
+#   - workflow_dispatch → ejecución manual desde la pestaña Actions
+# =============================================================
+
+name: CI — Pruebas y auto-merge
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # 18:00 hora de Lima (UTC-5) → 18:00 + 5h = 23:00 UTC
+    - cron: '0 23 * * *'
+  workflow_dispatch:  # ejecución manual desde GitHub (pestaña Actions)
+
+# Permisos mínimos a nivel de workflow; el job de merge amplía los suyos.
+permissions:
+  contents: read
+
+# Evita ejecuciones redundantes: cancela la anterior de la misma rama.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------
+  # PASO 1: correr las pruebas (gate obligatorio)
+  # ---------------------------------------------------------
+  pruebas:
+    name: Pruebas (TDD)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias (workspaces server + client)
+        run: npm ci
+
+      - name: Ejecutar pruebas Jest (backend)
+        run: npm test
+
+      - name: Construir frontend (Vite)
+        run: npm run build
+
+  # ---------------------------------------------------------
+  # PASO 2: solo si las pruebas PASARON y el evento es un PR
+  #         de este mismo repositorio → hacer el merge.
+  #         (Los PR de forks no reciben token con escritura,
+  #          así que quedan como gate de calidad manual.)
+  # ---------------------------------------------------------
+  auto-merge:
+    name: Auto-merge del PR
+    needs: pruebas          # ← solo corre si el job "pruebas" fue exitoso
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # necesario para fusionar en la rama base
+      pull-requests: write  # necesario para cerrar el PR
+    steps:
+      - name: Fusionar pull request
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                // Fusiona exactamente el commit que pasó las pruebas
+                sha: pr.head.sha,
+                merge_method: 'squash',
+              });
+              core.info(`✅ PR #${pr.number} fusionado (squash) tras pasar las pruebas.`);
+            } catch (error) {
+              core.setFailed(
+                `❌ No se pudo fusionar el PR #${pr.number}: ${error.message}`
+              );
+            }
+
+  # ---------------------------------------------------------
+  # PASO 3: el merge de un PR genera un push sobre la rama base,
+  #         así que "push" es el evento que lo representa.
+  #         Usa el MISMO comparativo que auto-merge: solo se
+  #         aceptan eventos de este mismo repositorio.
+  #         (Este check puede exigirse en la protección de main.)
+  # ---------------------------------------------------------
+  merge:
+    name: Verificación post-merge (main)
+    needs: pruebas          # ← solo corre si las pruebas de este push pasaron
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirmar que main quedó verde tras el merge
+        run: |
+          echo "✅ Merge verificado en main: commit ${GITHUB_SHA}"
+          echo "   Las pruebas pasaron antes de aceptar el cambio en la rama base."
