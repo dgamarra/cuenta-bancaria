@@ -21,7 +21,7 @@ describe('CuentaBancaria', () => {
     });
 
     it('debe lanzar error si el saldo inicial es negativo', () => {
-      expect(() => new CuentaBancaria('Ana', 'ES1', -10)).toThrow(
+      expect(() => new CuentaBancaria('Ana', 'ES1', -20)).toThrow(
         'El saldo inicial no puede ser negativo'
       );
     });
